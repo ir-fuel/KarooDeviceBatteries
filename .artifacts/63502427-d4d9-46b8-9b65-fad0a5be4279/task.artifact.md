@@ -1,0 +1,13 @@
+- [x] Initial Research & Sync Fixes
+- [x] Reverting to Stable Mock Implementation
+- [x] Integrating Real Sensor Data (Standalone Mode)
+- [x] UI Refinement (Compact 2-Row Layout)
+- [x] Date Formatting and Battery Persistence
+- [x] Home Assistant MQTT Integration
+- [x] Include Karoo Internal Battery Tracking
+- [x] Prepare for GitHub Publication
+    - [x] Secure credentials in `local.properties`
+    - [x] Update `settings.gradle.kts` logic
+    - [x] Create `README.md`
+    - [x] Create `LICENSE`
+- [x] Final Verification
