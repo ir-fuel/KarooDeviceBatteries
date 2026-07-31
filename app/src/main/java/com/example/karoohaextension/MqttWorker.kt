@@ -20,6 +20,7 @@ class MqttWorker(appContext: Context, workerParams: WorkerParameters) :
     override suspend fun doWork(): Result {
         val config = AppConfig(applicationContext)
         val host = config.mqttHost ?: return Result.failure()
+        val batteryStore = BatteryStore(applicationContext)
         
         val karooSystem = KarooSystemService(applicationContext)
         val connectionDeferred = CompletableDeferred<Boolean>()
@@ -60,7 +61,12 @@ class MqttWorker(appContext: Context, workerParams: WorkerParameters) :
 
         if (devices == null && internalBattery == null) return Result.retry()
 
-        val mqtt = MqttManager(host, config.mqttPort)
+        val mqtt = MqttManager(
+            host = host,
+            port = config.mqttPort,
+            username = config.mqttUsername,
+            password = config.mqttPassword
+        )
         if (!mqtt.connect()) return Result.retry()
 
         // Report Internal Battery if captured
@@ -85,11 +91,15 @@ class MqttWorker(appContext: Context, workerParams: WorkerParameters) :
 
         devices?.forEach { device ->
             val sensorId = device.id.replace(":", "_")
+            val percentage = batteryStore.getPercentage(device.id)
+            val status = device.details.lastBattery?.name ?: "UNKNOWN"
+
+            // Publish Discovery Config
             val discoveryTopic = "homeassistant/sensor/karoo_$serial/$sensorId/config"
-            
             val configPayload = buildJsonObject {
                 put("name", "${device.name} Battery")
                 put("state_topic", "karoo/$serial/sensor/$sensorId/state")
+                put("json_attributes_topic", "karoo/$serial/sensor/$sensorId/attributes")
                 put("unit_of_measurement", "%")
                 put("device_class", "battery")
                 put("unique_id", "karoo_${serial}_${sensorId}")
@@ -100,11 +110,18 @@ class MqttWorker(appContext: Context, workerParams: WorkerParameters) :
                     put("manufacturer", "Hammerhead")
                 }
             }.toString()
-
             mqtt.publish(discoveryTopic, configPayload, retain = true)
 
-            val status = device.details.lastBattery?.name ?: "UNKNOWN"
-            mqtt.publish("karoo/$serial/sensor/$sensorId/state", status)
+            // Publish State (Percentage)
+            val stateValue = if (percentage != -1) percentage.toString() else "unknown"
+            mqtt.publish("karoo/$serial/sensor/$sensorId/state", stateValue)
+
+            // Publish Attributes (Detailed status)
+            val attributesPayload = buildJsonObject {
+                put("status", status)
+                put("manufacturer", device.details.manufacturer ?: "Generic")
+            }.toString()
+            mqtt.publish("karoo/$serial/sensor/$sensorId/attributes", attributesPayload)
         }
 
         mqtt.disconnect()

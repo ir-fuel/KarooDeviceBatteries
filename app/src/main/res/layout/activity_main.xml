@@ -91,6 +91,27 @@
             android:singleLine="true"/>
 
         <EditText
+            android:id="@+id/mqttUsernameEditText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="MQTT Username"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#555555"
+            android:textSize="14sp"
+            android:singleLine="true"/>
+
+        <EditText
+            android:id="@+id/mqttPasswordEditText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="MQTT Password"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#555555"
+            android:textSize="14sp"
+            android:inputType="textPassword"
+            android:singleLine="true"/>
+
+        <EditText
             android:id="@+id/homeSsidEditText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

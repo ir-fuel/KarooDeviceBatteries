@@ -48,6 +48,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupSettings() {
         binding.mqttHostEditText.setText(appConfig.mqttHost)
+        binding.mqttUsernameEditText.setText(appConfig.mqttUsername)
+        binding.mqttPasswordEditText.setText(appConfig.mqttPassword)
         binding.homeSsidEditText.setText(appConfig.homeSsid)
 
         binding.toggleSettingsButton.setOnClickListener {
@@ -60,6 +62,8 @@ class MainActivity : AppCompatActivity() {
 
         binding.saveSettingsButton.setOnClickListener {
             appConfig.mqttHost = binding.mqttHostEditText.text.toString()
+            appConfig.mqttUsername = binding.mqttUsernameEditText.text.toString()
+            appConfig.mqttPassword = binding.mqttPasswordEditText.text.toString()
             appConfig.homeSsid = binding.homeSsidEditText.text.toString()
             binding.statusTextView.text = "Settings saved"
             
@@ -221,7 +225,8 @@ class MainActivity : AppCompatActivity() {
 
         val batteryTv = TextView(this).apply {
             val statusText = status?.name ?: "UNKNOWN"
-            text = if (percentage != -1) "$percentage% ($statusText)" else statusText
+            val percentageText = if (percentage != -1) "$percentage%" else "-"
+            text = "$percentageText ($statusText)"
             setTextColor(when (status) {
                 BatteryStatus.NEW, BatteryStatus.GOOD -> Color.GREEN
                 BatteryStatus.OK -> Color.YELLOW
