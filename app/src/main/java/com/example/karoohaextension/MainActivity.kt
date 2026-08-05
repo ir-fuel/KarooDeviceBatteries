@@ -254,7 +254,14 @@ class MainActivity : AppCompatActivity() {
 
         val batteryTv = TextView(this).apply {
             val rawStatusText = status?.name ?: "UNKNOWN"
-            val statusText = if (rawStatusText.equals("NEW", ignoreCase = true)) "Full" else rawStatusText
+            val statusText = when (rawStatusText.uppercase()) {
+                "NEW" -> "Full"
+                "GOOD" -> "High"
+                "OK" -> "Medium"
+                "LOW" -> "Low"
+                "CRITICAL" -> "Critical"
+                else -> rawStatusText
+            }
             
             text = if (isInternal && percentage != -1) {
                 "$percentage% ($statusText)"

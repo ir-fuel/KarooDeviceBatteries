@@ -122,7 +122,14 @@ class MqttWorker(appContext: Context, workerParams: WorkerParameters) :
         devices.forEach { device ->
             val sensorId = device.id.replace(":", "_")
             val rawStatus = device.details.lastBattery?.name ?: "UNKNOWN"
-            val status = if (rawStatus.equals("NEW", ignoreCase = true)) "Full" else rawStatus
+            val status = when (rawStatus.uppercase()) {
+                "NEW" -> "Full"
+                "GOOD" -> "High"
+                "OK" -> "Medium"
+                "LOW" -> "Low"
+                "CRITICAL" -> "Critical"
+                else -> rawStatus
+            }
 
             Log.d("KarooMQTT", "Publishing external sensor: ${device.name}, status=$status")
 
