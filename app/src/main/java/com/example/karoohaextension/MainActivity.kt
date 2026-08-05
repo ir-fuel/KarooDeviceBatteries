@@ -1,7 +1,12 @@
 package com.example.karoohaextension
 
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Color
 import android.graphics.Typeface
+import android.os.BatteryManager
 import android.os.Bundle
 import android.util.TypedValue
 import android.view.Gravity
@@ -29,8 +34,19 @@ class MainActivity : AppCompatActivity() {
     private lateinit var karooSystem: KarooSystemService
     private lateinit var batteryStore: BatteryStore
     private lateinit var appConfig: AppConfig
-    private var consumerId: String? = null
-    private var karooBatteryConsumerId: String? = null
+    private var devicesConsumerId: String? = null
+    private var batteryConsumerId: String? = null
+    private var lastDevices: List<SavedDevices.SavedDevice> = emptyList()
+
+    private val batteryReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+            val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+            val percentage = (level * 100 / scale.toFloat()).toInt()
+            batteryStore.savePercentage("karoo_internal", percentage)
+            renderDeviceList(lastDevices)
+        }
+    }
 
     private val dateFormat = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
 
@@ -67,11 +83,9 @@ class MainActivity : AppCompatActivity() {
             appConfig.homeSsid = binding.homeSsidEditText.text.toString()
             binding.statusTextView.text = "Settings saved"
             
-            // Hide settings and keyboard
             binding.settingsContainer.visibility = View.GONE
             hideKeyboard()
             
-            // Request permissions if needed
             requestPermissions(arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION, android.Manifest.permission.ACCESS_COARSE_LOCATION), 100)
         }
 
@@ -79,6 +93,13 @@ class MainActivity : AppCompatActivity() {
             val workRequest = OneTimeWorkRequestBuilder<MqttWorker>().build()
             WorkManager.getInstance(this).enqueue(workRequest)
             binding.statusTextView.text = "Sync triggered..."
+            binding.settingsContainer.visibility = View.GONE
+            hideKeyboard()
+        }
+
+        binding.refreshBatteriesButton.setOnClickListener {
+            observeSavedDevices()
+            binding.statusTextView.text = "Refreshing battery levels..."
             binding.settingsContainer.visibility = View.GONE
             hideKeyboard()
         }
@@ -91,12 +112,13 @@ class MainActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
+        registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
         karooSystem.connect { connected ->
             runOnUiThread {
                 if (connected) {
                     binding.statusTextView.text = "Status: Connected to Karoo System"
                     observeSavedDevices()
-                    observeKarooBattery()
+                    observeBatteries()
                 } else {
                     binding.statusTextView.text = "Status: Failed to connect"
                     binding.statusTextView.setTextColor(Color.RED)
@@ -106,32 +128,39 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onStop() {
-        consumerId?.let { karooSystem.removeConsumer(it) }
-        karooBatteryConsumerId?.let { karooSystem.removeConsumer(it) }
+        unregisterReceiver(batteryReceiver)
+        devicesConsumerId?.let { karooSystem.removeConsumer(it) }
+        batteryConsumerId?.let { karooSystem.removeConsumer(it) }
         karooSystem.disconnect()
         super.onStop()
     }
 
-    private fun observeKarooBattery() {
-        // Example: Capture real-time battery for the Karoo device itself
-        karooBatteryConsumerId = karooSystem.addConsumer<OnStreamState>(
+    private fun observeBatteries() {
+        batteryConsumerId?.let { karooSystem.removeConsumer(it) }
+        batteryConsumerId = karooSystem.addConsumer<OnStreamState>(
             params = OnStreamState.StartStreaming(DataType.Type.BATTERY_PERCENT),
             onEvent = { event ->
                 val streaming = event.state as? StreamState.Streaming
-                streaming?.dataPoint?.singleValue?.let { percentage ->
-                    batteryStore.savePercentage("karoo_internal", percentage.toInt())
+                val percentage = streaming?.dataPoint?.singleValue?.toInt()
+                val sourceId = streaming?.dataPoint?.sourceId
+
+                if (percentage != null) {
+                    val storeId = if (sourceId == null || sourceId == "internal") "karoo_internal" else sourceId
+                    batteryStore.savePercentage(storeId, percentage)
+                    runOnUiThread {
+                        renderDeviceList(lastDevices)
+                    }
                 }
             }
         )
     }
 
     private fun observeSavedDevices() {
-        // Remove existing consumer if any
-        consumerId?.let { karooSystem.removeConsumer(it) }
-        
-        consumerId = karooSystem.addConsumer<SavedDevices>(
+        devicesConsumerId?.let { karooSystem.removeConsumer(it) }
+        devicesConsumerId = karooSystem.addConsumer<SavedDevices>(
             onEvent = { event ->
                 runOnUiThread {
+                    lastDevices = event.devices
                     renderDeviceList(event.devices)
                 }
             },
@@ -155,7 +184,8 @@ class MainActivity : AppCompatActivity() {
                 manufacturer = "Hammerhead",
                 percentage = karooPercentage,
                 status = BatteryStatus.fromPercentage(karooPercentage),
-                lastUpdate = System.currentTimeMillis() // Or track specifically
+                lastUpdate = System.currentTimeMillis(),
+                isInternal = true
             )
         }
 
@@ -191,9 +221,9 @@ class MainActivity : AppCompatActivity() {
         manufacturer: String,
         percentage: Int,
         status: BatteryStatus?,
-        lastUpdate: Long?
+        lastUpdate: Long?,
+        isInternal: Boolean = false
     ) {
-        // Construct a card-style UI layout element for each sensor
         val sensorLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             layoutParams = LinearLayout.LayoutParams(
@@ -206,7 +236,6 @@ class MainActivity : AppCompatActivity() {
             setPadding(16, 12, 16, 12)
         }
 
-        // Row 1: Name (Left) and Battery Info (Right)
         val row1 = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             layoutParams = LinearLayout.LayoutParams(
@@ -224,9 +253,15 @@ class MainActivity : AppCompatActivity() {
         }
 
         val batteryTv = TextView(this).apply {
-            val statusText = status?.name ?: "UNKNOWN"
-            val percentageText = if (percentage != -1) "$percentage%" else "-"
-            text = "$percentageText ($statusText)"
+            val rawStatusText = status?.name ?: "UNKNOWN"
+            val statusText = if (rawStatusText.equals("NEW", ignoreCase = true)) "Full" else rawStatusText
+            
+            text = if (isInternal && percentage != -1) {
+                "$percentage% ($statusText)"
+            } else {
+                statusText
+            }
+
             setTextColor(when (status) {
                 BatteryStatus.NEW, BatteryStatus.GOOD -> Color.GREEN
                 BatteryStatus.OK -> Color.YELLOW
@@ -239,7 +274,6 @@ class MainActivity : AppCompatActivity() {
         row1.addView(nameTv)
         row1.addView(batteryTv)
 
-        // Row 2: Manufacturer and Last measured
         val row2 = TextView(this).apply {
             val dateStr = lastUpdate?.let { dateFormat.format(Date(it)) } ?: "Never"
             text = "$manufacturer • Last measured: $dateStr"

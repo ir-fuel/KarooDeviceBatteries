@@ -5,36 +5,29 @@ import android.content.Context
 import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import android.net.wifi.WifiInfo
-import android.net.wifi.WifiManager
-import android.os.Build
+import android.util.Log
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 
 class WifiTriggerReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action != "android.net.conn.CONNECTIVITY_CHANGE") return
+        // Handle both legacy and modern connectivity actions
+        if (intent.action != ConnectivityManager.CONNECTIVITY_ACTION && 
+            intent.action != "android.net.wifi.STATE_CHANGE") return
         
-        val config = AppConfig(context)
-        val homeSsid = config.homeSsid ?: return
-
         val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val network = connectivityManager.activeNetwork ?: return
         val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return
 
-        if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
-            val currentSsid = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val transportInfo = capabilities.transportInfo
-                (transportInfo as? WifiInfo)?.ssid
-            } else {
-                val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-                wifiManager.connectionInfo?.ssid
-            }?.replace("\"", "")
-
-            if (currentSsid == homeSsid) {
-                val workRequest = OneTimeWorkRequestBuilder<MqttWorker>().build()
-                WorkManager.getInstance(context).enqueue(workRequest)
-            }
+        // Check if we are now connected to ANY Wi-Fi network
+        if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) &&
+            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) {
+            
+            Log.d("KarooMQTT", "Wi-Fi connection detected, triggering sync...")
+            
+            val workRequest = OneTimeWorkRequestBuilder<MqttWorker>().build()
+            WorkManager.getInstance(context).enqueue(workRequest)
         }
     }
 }

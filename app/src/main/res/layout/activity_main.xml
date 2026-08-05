@@ -7,136 +7,165 @@
     android:background="#121212"
     android:padding="16dp">
 
-    <!-- Header Title -->
-    <RelativeLayout
+    <!-- Header Title and Settings Icon -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp">
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="8dp">
 
         <TextView
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="Karoo to Home Assistant Integration"
+            android:layout_weight="1"
+            android:text="Karoo to HA Integration"
             android:textColor="#FFFFFF"
             android:textSize="18sp"
-            android:textStyle="bold"
-            android:layout_centerHorizontal="true"/>
+            android:textStyle="bold" />
 
         <ImageButton
             android:id="@+id/toggleSettingsButton"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:layout_alignParentEnd="true"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:padding="8dp"
+            android:scaleType="fitCenter"
             android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:src="@android:drawable/ic_menu_manage"
-            android:contentDescription="Toggle Settings"/>
-    </RelativeLayout>
+            android:src="@drawable/ic_settings_cog"
+            android:contentDescription="Settings"/>
+    </LinearLayout>
 
-    <!-- Scrolling Container for the devices list -->
-    <ScrollView
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1">
-
-        <LinearLayout
-            android:id="@+id/sensorContainer"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical">
-
-            <!-- Dynamic list items will be injected here by MainActivity.kt -->
-
-        </LinearLayout>
-    </ScrollView>
-
-    <!-- Bottom Status Bar -->
+    <!-- Bottom Status Bar (Always visible above content or at bottom) -->
     <TextView
         android:id="@+id/statusTextView"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Status: Listening to Karoo SDK..."
+        android:text="Status: Listening..."
         android:textColor="#888888"
         android:textSize="11sp"
-        android:layout_marginTop="12dp"
+        android:layout_marginBottom="8dp"
         android:gravity="center"/>
 
-    <!-- MQTT Settings (Expandable) -->
-    <LinearLayout
-        android:id="@+id/settingsContainer"
+    <!-- Main Scrollable Area -->
+    <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="8dp"
-        android:layout_marginTop="8dp"
-        android:background="#1A1A1A"
-        android:visibility="gone">
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Home Assistant MQTT Settings"
-            android:textColor="#AAAAAA"
-            android:textSize="12sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="4dp"/>
-
-        <EditText
-            android:id="@+id/mqttHostEditText"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="MQTT Broker IP (e.g. 192.168.1.5)"
-            android:textColor="#FFFFFF"
-            android:textColorHint="#555555"
-            android:textSize="14sp"
-            android:singleLine="true"/>
+            android:orientation="vertical">
 
-        <EditText
-            android:id="@+id/mqttUsernameEditText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="MQTT Username"
-            android:textColor="#FFFFFF"
-            android:textColorHint="#555555"
-            android:textSize="14sp"
-            android:singleLine="true"/>
+            <!-- Settings (Expandable) - Moved inside ScrollView so it can scroll -->
+            <LinearLayout
+                android:id="@+id/settingsContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="12dp"
+                android:layout_marginBottom="16dp"
+                android:background="#1A1A1A"
+                android:visibility="gone">
 
-        <EditText
-            android:id="@+id/mqttPasswordEditText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="MQTT Password"
-            android:textColor="#FFFFFF"
-            android:textColorHint="#555555"
-            android:textSize="14sp"
-            android:inputType="textPassword"
-            android:singleLine="true"/>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="MQTT Configuration"
+                    android:textColor="#AAAAAA"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="8dp"/>
 
-        <EditText
-            android:id="@+id/homeSsidEditText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Home WiFi SSID"
-            android:textColor="#FFFFFF"
-            android:textColorHint="#555555"
-            android:textSize="14sp"
-            android:singleLine="true"/>
+                <EditText
+                    android:id="@+id/mqttHostEditText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="MQTT Broker IP"
+                    android:textColor="#FFFFFF"
+                    android:textColorHint="#555555"
+                    android:textSize="14sp"
+                    android:singleLine="true"/>
 
-        <Button
-            android:id="@+id/saveSettingsButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Save Settings"
-            android:layout_gravity="end"
-            style="?android:attr/borderlessButtonStyle"
-            android:textColor="#00AAFF"/>
+                <EditText
+                    android:id="@+id/mqttUsernameEditText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="MQTT Username"
+                    android:textColor="#FFFFFF"
+                    android:textColorHint="#555555"
+                    android:textSize="14sp"
+                    android:singleLine="true"/>
 
-        <Button
-            android:id="@+id/syncNowButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Sync to Home Assistant Now"
-            android:layout_marginTop="4dp"
-            android:backgroundTint="#333333"
-            android:textColor="#FFFFFF"/>
-    </LinearLayout>
+                <EditText
+                    android:id="@+id/mqttPasswordEditText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="MQTT Password"
+                    android:textColor="#FFFFFF"
+                    android:textColorHint="#555555"
+                    android:textSize="14sp"
+                    android:inputType="textPassword"
+                    android:singleLine="true"/>
+
+                <EditText
+                    android:id="@+id/homeSsidEditText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="Home WiFi SSID"
+                    android:textColor="#FFFFFF"
+                    android:textColorHint="#555555"
+                    android:textSize="14sp"
+                    android:singleLine="true"/>
+
+                <Button
+                    android:id="@+id/saveSettingsButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Save Settings"
+                    android:layout_gravity="end"
+                    style="?android:attr/borderlessButtonStyle"
+                    android:textColor="#00AAFF"/>
+
+                <Button
+                    android:id="@+id/syncNowButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Sync to HA Now"
+                    android:layout_marginTop="8dp"
+                    android:backgroundTint="#333333"
+                    android:textColor="#FFFFFF"/>
+
+                <Button
+                    android:id="@+id/refreshBatteriesButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Refresh Battery Levels"
+                    android:layout_marginTop="8dp"
+                    android:backgroundTint="#444444"
+                    android:textColor="#FFFFFF"/>
+
+                <TextView
+                    android:id="@+id/versionTextView"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Version 1.0"
+                    android:textColor="#555555"
+                    android:textSize="11sp"
+                    android:layout_marginTop="16dp"
+                    android:gravity="center"/>
+            </LinearLayout>
+
+            <!-- Sensor List -->
+            <LinearLayout
+                android:id="@+id/sensorContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+                <!-- Dynamic list items injected here -->
+            </LinearLayout>
+
+        </LinearLayout>
+    </ScrollView>
 </LinearLayout>
