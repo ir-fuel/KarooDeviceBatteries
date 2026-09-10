@@ -1,4 +1,4 @@
-package com.example.karoodevicebatteries
+package be.astus.karoodevicebatteries
 
 import com.hivemq.client.mqtt.mqtt5.Mqtt5BlockingClient
 import com.hivemq.client.mqtt.mqtt5.Mqtt5Client

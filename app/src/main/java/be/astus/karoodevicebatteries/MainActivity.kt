@@ -1,4 +1,4 @@
-package com.example.karoodevicebatteries
+package be.astus.karoodevicebatteries
 
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -17,7 +17,7 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
-import com.example.karoodevicebatteries.databinding.ActivityMainBinding
+import be.astus.karoodevicebatteries.databinding.ActivityMainBinding
 import io.hammerhead.karooext.KarooSystemService
 import io.hammerhead.karooext.models.BatteryStatus
 import io.hammerhead.karooext.models.DataType

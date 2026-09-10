@@ -1,4 +1,4 @@
-package com.example.karoodevicebatteries
+package be.astus.karoodevicebatteries
 
 import android.content.Context
 import android.content.Intent

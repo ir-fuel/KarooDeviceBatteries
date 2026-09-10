@@ -7,11 +7,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.karoodevicebatteries"
+    namespace = "be.astus.karoodevicebatteries"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.karoodevicebatteries"
+        applicationId = "be.astus.karoodevicebatteries"
         minSdk = 28
         targetSdk = 34
         versionCode = 1
