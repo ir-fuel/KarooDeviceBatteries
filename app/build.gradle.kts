@@ -7,11 +7,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.karoohaextension"
+    namespace = "com.example.karoodevicebatteries"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.karoohaextension"
+        applicationId = "com.example.karoodevicebatteries"
         minSdk = 28
         targetSdk = 34
         versionCode = 1

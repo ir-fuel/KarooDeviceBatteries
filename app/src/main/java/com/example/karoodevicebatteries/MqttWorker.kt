@@ -1,4 +1,4 @@
-package com.example.karoohaextension
+package com.example.karoodevicebatteries
 
 import android.content.Context
 import android.content.Intent
@@ -101,7 +101,7 @@ class MqttWorker(appContext: Context, workerParams: WorkerParameters) :
         // Report Internal Battery as Percentage
         val karooPercentage = batteryStore.getPercentage("karoo_internal")
         if (karooPercentage != -1) {
-            val discoveryTopic = "homeassistant/sensor/karoo_$serial/internal_battery/config"
+            val discoveryTopic = "karoo/sensor/karoo_$serial/internal_battery/config"
             val configPayload = buildJsonObject {
                 put("name", "Karoo Battery")
                 put("state_topic", "karoo/$serial/sensor/internal_battery/state")
@@ -134,7 +134,7 @@ class MqttWorker(appContext: Context, workerParams: WorkerParameters) :
             Log.d("KarooMQTT", "Publishing external sensor: ${device.name}, status=$status")
 
             // Publish Discovery Config for External Sensor (String state)
-            val discoveryTopic = "homeassistant/sensor/karoo_$serial/$sensorId/config"
+            val discoveryTopic = "karoo/sensor/karoo_$serial/$sensorId/config"
             val configPayload = buildJsonObject {
                 put("name", "${device.name} Battery Status")
                 put("state_topic", "karoo/$serial/sensor/$sensorId/state")
@@ -152,7 +152,7 @@ class MqttWorker(appContext: Context, workerParams: WorkerParameters) :
             Log.d("KarooMQTT", "Publishing discovery to $discoveryTopic")
             mqtt.publish(discoveryTopic, configPayload, retain = true)
 
-            // Publish State as String (Retained so HA picks it up immediately)
+            // Publish State as String (Retained so subscribers pick it up immediately)
             val stateTopic = "karoo/$serial/sensor/$sensorId/state"
             Log.d("KarooMQTT", "Publishing state '$status' to $stateTopic")
             mqtt.publish(stateTopic, status, retain = true)

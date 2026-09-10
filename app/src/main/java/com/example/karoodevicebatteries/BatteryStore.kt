@@ -1,4 +1,4 @@
-package com.example.karoohaextension
+package com.example.karoodevicebatteries
 
 import android.content.Context
 import android.content.SharedPreferences

@@ -1,11 +1,11 @@
-# Karoo to HA Integration
+# Karoo to MQTT
 
-This application allows you to monitor the battery levels of your Hammerhead Karoo device and all its paired sensors (Heart Rate, Power, Shifting, etc.) directly in Home Assistant.
+This application allows you to monitor the battery levels of your Hammerhead Karoo device and all its paired sensors (Heart Rate, Power, Shifting, etc.) by publishing them to an MQTT broker.
 
 ## Features
 
 - **Battery Monitoring**: Tracks Karoo internal battery percentage and string-based status for all paired sensors (Full, GOOD, OK, LOW, CRITICAL).
-- **Home Assistant Integration**: Uses MQTT Discovery to automatically create entities in HA.
+- **MQTT Discovery**: Publishes a retained discovery/config message per sensor, so compatible MQTT tooling can auto-create entities without manual configuration.
 - **Secure Credential Storage**: Uses Android Keystore and `EncryptedSharedPreferences` to securely store your MQTT credentials.
 - **Universal Wi-Fi Triggering**: Automatically syncs data whenever the Karoo establishes a valid connection to **any** Wi-Fi network.
 - **High-Contrast UI**: Redesigned layout optimized for the Karoo's screen with gear-icon settings and unified scrolling.
@@ -21,11 +21,11 @@ This application allows you to monitor the battery levels of your Hammerhead Kar
    - Enter your **MQTT Username** and **Password** (stored securely).
    - Tap **Save Settings**.
 3. **Grant Permissions**: When prompted, grant **Location Permission**. This is required by Android for Wi-Fi and network detection.
-4. **Sync**: Tap **Sync to HA Now** to verify the connection. Your sensors will appear in Home Assistant under a new device named after your Karoo's serial number.
+4. **Sync**: Tap **Sync Now** to verify the connection. Your sensors will be published to the broker under a new device named after your Karoo's serial number.
 
 ## Technical Details
 
-- **MQTT Discovery**: Automatically handles sensor configuration in HA.
+- **MQTT Discovery**: Automatically publishes sensor configuration to `karoo/sensor/.../config`.
 - **Background Worker**: Uses `WorkManager` for reliable background syncs triggered by network changes.
 - **Internal Battery**: Polled directly from the Android system for high-precision real-time tracking while charging.
 - **External Sensors**: Monitored via the Hammerhead Extension SDK battery stream.

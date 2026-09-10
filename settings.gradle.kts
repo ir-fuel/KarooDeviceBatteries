@@ -36,5 +36,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Karoo HA extension"
+rootProject.name = "Karoo Device Batteries"
 include(":app")

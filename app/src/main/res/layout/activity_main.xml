@@ -19,7 +19,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Karoo to HA Integration"
+            android:text="Karoo to MQTT"
             android:textColor="#FFFFFF"
             android:textSize="18sp"
             android:textStyle="bold" />
@@ -132,7 +132,7 @@
                     android:id="@+id/syncNowButton"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Sync to HA Now"
+                    android:text="Sync Now"
                     android:layout_marginTop="8dp"
                     android:backgroundTint="#333333"
                     android:textColor="#FFFFFF"/>

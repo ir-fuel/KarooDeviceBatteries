@@ -1,4 +1,4 @@
-package com.example.karoohaextension
+package com.example.karoodevicebatteries
 
 import android.content.Context
 import android.content.SharedPreferences
@@ -34,6 +34,6 @@ class AppConfig(context: Context) {
         get() = prefs.getString("home_ssid", null)
         set(value) = prefs.edit().putString("home_ssid", value).apply()
 
-    // Default HA MQTT port is 1883
+    // Default MQTT port is 1883
     val mqttPort: Int = 1883
 }
