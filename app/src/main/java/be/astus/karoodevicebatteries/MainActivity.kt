@@ -2,6 +2,8 @@ package be.astus.karoodevicebatteries
 
 import android.Manifest
 import android.content.BroadcastReceiver
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -20,6 +22,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -81,6 +84,7 @@ class MainActivity : AppCompatActivity() {
         binding.mqttUsernameEditText.setText(appConfig.mqttUsername)
         binding.mqttPasswordEditText.setText(appConfig.mqttPassword)
         binding.homeSsidEditText.setText(appConfig.homeSsid)
+        binding.ignoredDeviceIdsEditText.setText(appConfig.ignoredDeviceIds)
 
         binding.toggleSettingsButton.setOnClickListener {
             binding.settingsContainer.visibility = if (binding.settingsContainer.visibility == View.VISIBLE) {
@@ -95,7 +99,9 @@ class MainActivity : AppCompatActivity() {
             appConfig.mqttUsername = binding.mqttUsernameEditText.text.toString()
             appConfig.mqttPassword = binding.mqttPasswordEditText.text.toString()
             appConfig.homeSsid = binding.homeSsidEditText.text.toString()
+            appConfig.ignoredDeviceIds = binding.ignoredDeviceIdsEditText.text.toString()
             binding.statusTextView.text = "Settings saved"
+            renderDeviceList(lastDevices)
 
             binding.settingsContainer.visibility = View.GONE
             hideKeyboard()
@@ -255,6 +261,10 @@ class MainActivity : AppCompatActivity() {
         devicesConsumerId?.let { karooSystem.removeConsumer(it) }
         devicesConsumerId = karooSystem.addConsumer<SavedDevices>(
             onEvent = { event ->
+                DiagnosticLog.i(
+                    "MainActivity: SavedDevices event, ${event.devices.size} device(s): " +
+                        event.devices.joinToString { "[id=${it.id} name='${it.name}']" }
+                )
                 runOnUiThread {
                     lastDevices = event.devices
                     renderDeviceList(event.devices)
@@ -269,9 +279,10 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
-    private fun renderDeviceList(devices: List<SavedDevices.SavedDevice>) {
+    private fun renderDeviceList(allDevices: List<SavedDevices.SavedDevice>) {
         binding.sensorContainer.removeAllViews()
-        
+        val devices = allDevices.filter { !appConfig.isDeviceIgnored(it.id) }
+
         // Manual entry for Karoo Internal Battery
         val karooPercentage = batteryStore.getPercentage("karoo_internal")
         if (karooPercentage != -1) {
@@ -305,7 +316,8 @@ class MainActivity : AppCompatActivity() {
                 manufacturer = detail.manufacturer ?: "Generic",
                 percentage = batteryStore.getPercentage(device.id),
                 status = detail.lastBattery,
-                lastUpdate = detail.lastBatteryUpdate
+                lastUpdate = detail.lastBatteryUpdate,
+                deviceId = device.id
             )
         }
 
@@ -318,7 +330,8 @@ class MainActivity : AppCompatActivity() {
         percentage: Int,
         status: BatteryStatus?,
         lastUpdate: Long?,
-        isInternal: Boolean = false
+        isInternal: Boolean = false,
+        deviceId: String? = null
     ) {
         val sensorLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -330,6 +343,15 @@ class MainActivity : AppCompatActivity() {
             }
             setBackgroundColor(Color.parseColor("#1E1E1E"))
             setPadding(16, 12, 16, 12)
+            if (deviceId != null) {
+                isClickable = true
+                isFocusable = true
+                setOnClickListener {
+                    val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+                    clipboard.setPrimaryClip(ClipData.newPlainText("Device ID", deviceId))
+                    Toast.makeText(this@MainActivity, "Copied device id: $deviceId", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
 
         val row1 = LinearLayout(this).apply {
@@ -399,6 +421,15 @@ class MainActivity : AppCompatActivity() {
 
         sensorLayout.addView(row1)
         sensorLayout.addView(row2)
+
+        if (deviceId != null) {
+            val row3 = TextView(this).apply {
+                text = "id: $deviceId (tap to copy)"
+                setTextColor(Color.parseColor("#555555"))
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f)
+            }
+            sensorLayout.addView(row3)
+        }
 
         binding.sensorContainer.addView(sensorLayout)
     }

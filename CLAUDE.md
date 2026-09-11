@@ -34,10 +34,14 @@ when reasoning about behavior or proposing fixes:
 - **Networking on-device is real-world Wi-Fi**, e.g. tethering to a phone
   hotspot, home Wi-Fi after a ride, etc. There is no cellular connectivity
   path to assume.
-- **Building requires Hammerhead's private GitHub Packages registry** for
-  `karoo-ext` — `local.properties` needs `gpr.user` / `gpr.key` (a GitHub PAT
-  with `read:packages`). Don't assume `./gradlew build` will work out of the
-  box without those credentials configured.
+- **`karoo-ext` resolves via JitPack, no credentials needed.** `settings.gradle.kts`
+  also wires up an optional Hammerhead GitHub Packages registry keyed off
+  `gpr.user`/`gpr.key` in `local.properties`, but the dependency coordinate
+  (`com.github.hammerheadnav:karoo-ext`) is JitPack's own convention and
+  resolves fine from the `jitpack.io` repo that's already declared — confirmed
+  2026-09-11 by running `./gradlew assembleDebug`/`installDebug` with no
+  `gpr.*` properties set at all. Don't ask the user for GPR credentials before
+  attempting a build.
 - **Deployment is via sideloading or `adb`/Android Studio directly onto the
   Karoo hardware**, not the Play Store — see README "Setup Instructions".
 

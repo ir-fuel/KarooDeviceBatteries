@@ -119,6 +119,16 @@
                     android:textSize="14sp"
                     android:singleLine="true"/>
 
+                <EditText
+                    android:id="@+id/ignoredDeviceIdsEditText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="Ignored Device IDs (comma-separated)"
+                    android:textColor="#FFFFFF"
+                    android:textColorHint="#555555"
+                    android:textSize="14sp"
+                    android:singleLine="true"/>
+
                 <Button
                     android:id="@+id/saveSettingsButton"
                     android:layout_width="wrap_content"

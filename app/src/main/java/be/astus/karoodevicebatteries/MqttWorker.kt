@@ -109,6 +109,14 @@ class MqttWorker(appContext: Context, workerParams: WorkerParameters) :
         }
         DiagnosticLog.i("MqttWorker: got ${devices.size} saved device(s)")
 
+        val (ignoredDevices, publishableDevices) = devices.partition { config.isDeviceIgnored(it.id) }
+        if (ignoredDevices.isNotEmpty()) {
+            DiagnosticLog.i(
+                "MqttWorker: skipping ${ignoredDevices.size} ignored device(s): " +
+                    ignoredDevices.joinToString { "[id=${it.id} name='${it.name}']" }
+            )
+        }
+
         val mqtt = MqttManager(
             host = host,
             port = config.mqttPort,
@@ -142,7 +150,7 @@ class MqttWorker(appContext: Context, workerParams: WorkerParameters) :
             mqtt.publish("karoo/$serial/sensor/internal_battery/state", karooPercentage.toString())
         }
 
-        devices.forEach { device ->
+        publishableDevices.forEach { device ->
             val sensorId = device.id.replace(":", "_")
             val rawStatus = device.details.lastBattery?.name ?: "UNKNOWN"
             val status = when (rawStatus.uppercase()) {
@@ -154,7 +162,7 @@ class MqttWorker(appContext: Context, workerParams: WorkerParameters) :
                 else -> rawStatus
             }
 
-            DiagnosticLog.d("MqttWorker: publishing external sensor '${device.name}', status=$status")
+            DiagnosticLog.d("MqttWorker: publishing external sensor id=${device.id} name='${device.name}', status=$status")
 
             // Publish Discovery Config for External Sensor (String state)
             val discoveryTopic = "karoo/sensor/karoo_$serial/$sensorId/config"
@@ -193,7 +201,7 @@ class MqttWorker(appContext: Context, workerParams: WorkerParameters) :
         }
 
         mqtt.disconnect()
-        DiagnosticLog.i("MqttWorker: finished successfully, published ${devices.size} device(s)")
+        DiagnosticLog.i("MqttWorker: finished successfully, published ${publishableDevices.size} device(s)")
         return Result.success()
     }
 }

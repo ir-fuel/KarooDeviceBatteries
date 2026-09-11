@@ -34,6 +34,16 @@ class AppConfig(context: Context) {
         get() = prefs.getString("home_ssid", null)
         set(value) = prefs.edit().putString("home_ssid", value).apply()
 
+    // Comma-separated Karoo device ids to hide from the sensor list and skip when
+    // publishing - for stale SavedDevices entries the Karoo system service keeps
+    // reporting even after they've disappeared from Karoo's own Sensors settings.
+    var ignoredDeviceIds: String?
+        get() = prefs.getString("ignored_device_ids", null)
+        set(value) = prefs.edit().putString("ignored_device_ids", value).apply()
+
+    fun isDeviceIgnored(deviceId: String): Boolean =
+        ignoredDeviceIds.orEmpty().split(",").map { it.trim() }.contains(deviceId)
+
     // Default MQTT port is 1883
     val mqttPort: Int = 1883
 }
