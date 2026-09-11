@@ -16,6 +16,7 @@ import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.inputmethod.InputMethodManager
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -333,6 +334,7 @@ class MainActivity : AppCompatActivity() {
 
         val row1 = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
@@ -345,6 +347,22 @@ class MainActivity : AppCompatActivity() {
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
             setTypeface(null, Typeface.BOLD)
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f)
+        }
+
+        val batteryColor = when (status) {
+            BatteryStatus.NEW, BatteryStatus.GOOD -> Color.GREEN
+            BatteryStatus.OK -> Color.YELLOW
+            BatteryStatus.LOW, BatteryStatus.CRITICAL -> Color.RED
+            else -> Color.GRAY
+        }
+
+        val batteryIconView = ImageView(this).apply {
+            setImageResource(R.drawable.ic_battery)
+            setColorFilter(batteryColor)
+            layoutParams = LinearLayout.LayoutParams(18.dpToPx(), 18.dpToPx()).apply {
+                gravity = Gravity.CENTER_VERTICAL
+                setMargins(0, 0, 6, 0)
+            }
         }
 
         val batteryTv = TextView(this).apply {
@@ -364,16 +382,12 @@ class MainActivity : AppCompatActivity() {
                 statusText
             }
 
-            setTextColor(when (status) {
-                BatteryStatus.NEW, BatteryStatus.GOOD -> Color.GREEN
-                BatteryStatus.OK -> Color.YELLOW
-                BatteryStatus.LOW, BatteryStatus.CRITICAL -> Color.RED
-                else -> Color.GRAY
-            })
+            setTextColor(batteryColor)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
             setTypeface(null, Typeface.BOLD)
         }
         row1.addView(nameTv)
+        row1.addView(batteryIconView)
         row1.addView(batteryTv)
 
         val row2 = TextView(this).apply {
@@ -388,4 +402,7 @@ class MainActivity : AppCompatActivity() {
 
         binding.sensorContainer.addView(sensorLayout)
     }
+
+    private fun Int.dpToPx(): Int =
+        (this * resources.displayMetrics.density).toInt()
 }
