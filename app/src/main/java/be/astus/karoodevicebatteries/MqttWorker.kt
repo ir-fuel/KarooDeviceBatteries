@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
-import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import io.hammerhead.karooext.KarooSystemService
@@ -19,24 +18,40 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
 
+// Triggered either by HomeWifiForegroundService (after it confirms the device is on
+// the configured home Wi-Fi) or directly by the manual "Sync Now" button, which
+// bypasses that check on purpose so it always works for testing the MQTT connection.
 class MqttWorker(appContext: Context, workerParams: WorkerParameters) :
     CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
+        DiagnosticLog.i("MqttWorker: starting")
         val config = AppConfig(applicationContext)
-        val host = config.mqttHost ?: return Result.failure()
+        val host = config.mqttHost
+        if (host == null) {
+            DiagnosticLog.w("MqttWorker: no MQTT host configured, aborting")
+            return Result.failure()
+        }
+
         val batteryStore = BatteryStore(applicationContext)
-        
+
         val karooSystem = KarooSystemService(applicationContext)
         val connectionDeferred = CompletableDeferred<Boolean>()
-        
+
         karooSystem.connect { connected ->
             connectionDeferred.complete(connected)
         }
 
-        if (!connectionDeferred.await()) return Result.retry()
+        if (!connectionDeferred.await()) {
+            DiagnosticLog.w("MqttWorker: failed to connect to Karoo system service, will retry")
+            return Result.retry()
+        }
 
-        val info = karooSystem.info ?: return Result.failure()
+        val info = karooSystem.info
+        if (info == null) {
+            DiagnosticLog.e("MqttWorker: Karoo system connected but info is null, aborting")
+            return Result.failure()
+        }
         val serial = info.serial
 
         // Get internal battery from Android system
@@ -62,7 +77,7 @@ class MqttWorker(appContext: Context, workerParams: WorkerParameters) :
                 val percentage = streaming?.dataPoint?.singleValue?.toInt()
                 val sourceId = streaming?.dataPoint?.sourceId
 
-                Log.d("KarooMQTT", "Battery event: sourceId=$sourceId, percentage=$percentage")
+                DiagnosticLog.d("MqttWorker: battery event sourceId=$sourceId, percentage=$percentage")
 
                 if (percentage != null) {
                     val storeId = if (sourceId == null || sourceId == "internal") "karoo_internal" else sourceId
@@ -78,9 +93,9 @@ class MqttWorker(appContext: Context, workerParams: WorkerParameters) :
                 devicesDeferred.complete(event.devices)
             }
         )
-        
+
         val devices = withTimeoutOrNull(kotlin.time.Duration.parse("5s")) { devicesDeferred.await() }
-        
+
         // Wait for sensors to report their battery
         delay(3000)
 
@@ -88,7 +103,11 @@ class MqttWorker(appContext: Context, workerParams: WorkerParameters) :
         karooSystem.removeConsumer(devicesConsumerId)
         karooSystem.disconnect()
 
-        if (devices == null) return Result.retry()
+        if (devices == null) {
+            DiagnosticLog.w("MqttWorker: timed out waiting for saved devices list, will retry")
+            return Result.retry()
+        }
+        DiagnosticLog.i("MqttWorker: got ${devices.size} saved device(s)")
 
         val mqtt = MqttManager(
             host = host,
@@ -96,7 +115,11 @@ class MqttWorker(appContext: Context, workerParams: WorkerParameters) :
             username = config.mqttUsername,
             password = config.mqttPassword
         )
-        if (!mqtt.connect()) return Result.retry()
+        if (!mqtt.connect()) {
+            DiagnosticLog.w("MqttWorker: failed to connect to MQTT broker at $host:${config.mqttPort}, will retry")
+            return Result.retry()
+        }
+        DiagnosticLog.i("MqttWorker: connected to MQTT broker at $host:${config.mqttPort}")
 
         // Report Internal Battery as Percentage
         val karooPercentage = batteryStore.getPercentage("karoo_internal")
@@ -131,7 +154,7 @@ class MqttWorker(appContext: Context, workerParams: WorkerParameters) :
                 else -> rawStatus
             }
 
-            Log.d("KarooMQTT", "Publishing external sensor: ${device.name}, status=$status")
+            DiagnosticLog.d("MqttWorker: publishing external sensor '${device.name}', status=$status")
 
             // Publish Discovery Config for External Sensor (String state)
             val discoveryTopic = "karoo/sensor/karoo_$serial/$sensorId/config"
@@ -140,7 +163,7 @@ class MqttWorker(appContext: Context, workerParams: WorkerParameters) :
                 put("state_topic", "karoo/$serial/sensor/$sensorId/state")
                 put("json_attributes_topic", "karoo/$serial/sensor/$sensorId/attributes")
                 // Removing device_class "battery" as it requires a numeric value and unit
-                put("icon", "mdi:battery") 
+                put("icon", "mdi:battery")
                 put("unique_id", "karoo_${serial}_${sensorId}_status")
                 putJsonObject("device") {
                     put("identifiers", serial)
@@ -149,12 +172,10 @@ class MqttWorker(appContext: Context, workerParams: WorkerParameters) :
                     put("manufacturer", "Hammerhead")
                 }
             }.toString()
-            Log.d("KarooMQTT", "Publishing discovery to $discoveryTopic")
             mqtt.publish(discoveryTopic, configPayload, retain = true)
 
             // Publish State as String (Retained so subscribers pick it up immediately)
             val stateTopic = "karoo/$serial/sensor/$sensorId/state"
-            Log.d("KarooMQTT", "Publishing state '$status' to $stateTopic")
             mqtt.publish(stateTopic, status, retain = true)
 
             // Publish Attributes
@@ -171,6 +192,7 @@ class MqttWorker(appContext: Context, workerParams: WorkerParameters) :
         }
 
         mqtt.disconnect()
+        DiagnosticLog.i("MqttWorker: finished successfully, published ${devices.size} device(s)")
         return Result.success()
     }
 }

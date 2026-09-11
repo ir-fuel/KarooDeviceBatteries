@@ -1,20 +1,27 @@
 package be.astus.karoodevicebatteries
 
+import android.Manifest
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Color
 import android.graphics.Typeface
+import android.net.Uri
 import android.os.BatteryManager
+import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import be.astus.karoodevicebatteries.databinding.ActivityMainBinding
@@ -60,6 +67,12 @@ class MainActivity : AppCompatActivity() {
         appConfig = AppConfig(this)
 
         setupSettings()
+        DiagnosticLog.init(this)
+        startHomeWifiService()
+    }
+
+    private fun startHomeWifiService() {
+        ContextCompat.startForegroundService(this, Intent(this, HomeWifiForegroundService::class.java))
     }
 
     private fun setupSettings() {
@@ -82,14 +95,19 @@ class MainActivity : AppCompatActivity() {
             appConfig.mqttPassword = binding.mqttPasswordEditText.text.toString()
             appConfig.homeSsid = binding.homeSsidEditText.text.toString()
             binding.statusTextView.text = "Settings saved"
-            
+
             binding.settingsContainer.visibility = View.GONE
             hideKeyboard()
-            
-            requestPermissions(arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION, android.Manifest.permission.ACCESS_COARSE_LOCATION), 100)
+
+            requestLocationPermissions()
+
+            // The home SSID may have just been set while already connected to it - there's
+            // no new connectivity event in that case, so ask the running service to check now.
+            ContextCompat.startForegroundService(this, HomeWifiForegroundService.recheckIntent(this))
         }
 
         binding.syncNowButton.setOnClickListener {
+            DiagnosticLog.i("Manual 'Sync Now' triggered")
             val workRequest = OneTimeWorkRequestBuilder<MqttWorker>().build()
             WorkManager.getInstance(this).enqueue(workRequest)
             binding.statusTextView.text = "Sync triggered..."
@@ -103,6 +121,30 @@ class MainActivity : AppCompatActivity() {
             binding.settingsContainer.visibility = View.GONE
             hideKeyboard()
         }
+
+        binding.viewLogsButton.setOnClickListener {
+            showLogsDialog()
+        }
+    }
+
+    private fun showLogsDialog() {
+        val textView = TextView(this).apply {
+            text = DiagnosticLog.readAll()
+            setTextColor(Color.LTGRAY)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+            setPadding(24, 24, 24, 24)
+            typeface = Typeface.MONOSPACE
+        }
+        val scrollView = ScrollView(this).apply { addView(textView) }
+
+        AlertDialog.Builder(this)
+            .setTitle("Sync Logs")
+            .setView(scrollView)
+            .setPositiveButton("Close", null)
+            .setNeutralButton("Clear") { _, _ ->
+                DiagnosticLog.clear()
+            }
+            .show()
     }
 
     private fun hideKeyboard() {
@@ -110,15 +152,68 @@ class MainActivity : AppCompatActivity() {
         imm.hideSoftInputFromWindow(binding.root.windowToken, 0)
     }
 
+    private fun requestLocationPermissions() {
+        // Reading the connected Wi-Fi SSID from the background WorkManager job requires
+        // ACCESS_BACKGROUND_LOCATION on API 29+, in addition to fine/coarse location.
+        val permissions = mutableListOf(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            permissions.add(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissions.add(Manifest.permission.POST_NOTIFICATIONS)
+        }
+        requestPermissions(permissions.toTypedArray(), 100)
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 100) {
+            checkBackgroundLocationHint()
+        }
+    }
+
+    private fun checkBackgroundLocationHint() {
+        // On API 30+, ACCESS_BACKGROUND_LOCATION cannot be granted from the same runtime
+        // dialog as foreground location - the user has to flip "Allow all the time" in
+        // system Settings. Home Wi-Fi detection silently never matches without it.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
+        val hasBackgroundLocation = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.ACCESS_BACKGROUND_LOCATION
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+        if (!hasBackgroundLocation) {
+            binding.statusTextView.text =
+                "Home Wi-Fi sync needs \"Allow all the time\" Location access. Tap here to open Settings."
+            binding.statusTextView.setTextColor(Color.YELLOW)
+            binding.statusTextView.setOnClickListener {
+                startActivity(
+                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null))
+                )
+            }
+        } else {
+            binding.statusTextView.setOnClickListener(null)
+        }
+    }
+
     override fun onStart() {
         super.onStart()
         registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        startHomeWifiService()
         karooSystem.connect { connected ->
             runOnUiThread {
                 if (connected) {
                     binding.statusTextView.text = "Status: Connected to Karoo System"
                     observeSavedDevices()
                     observeBatteries()
+                    checkBackgroundLocationHint()
                 } else {
                     binding.statusTextView.text = "Status: Failed to connect"
                     binding.statusTextView.setTextColor(Color.RED)
@@ -262,7 +357,7 @@ class MainActivity : AppCompatActivity() {
                 "CRITICAL" -> "Critical"
                 else -> rawStatusText
             }
-            
+
             text = if (isInternal && percentage != -1) {
                 "$percentage% ($statusText)"
             } else {

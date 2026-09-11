@@ -30,6 +30,7 @@ class MqttManager(
             client?.connect()
             true
         } catch (e: Exception) {
+            DiagnosticLog.e("MqttManager: connect() to $host:$port failed", e)
             false
         }
     }
@@ -42,7 +43,7 @@ class MqttManager(
                 ?.retain(retain)
                 ?.send()
         } catch (e: Exception) {
-            // Log or handle error
+            DiagnosticLog.e("MqttManager: publish() to '$topic' failed", e)
         }
     }
 
@@ -50,7 +51,7 @@ class MqttManager(
         try {
             client?.disconnect()
         } catch (e: Exception) {
-            // Ignore
+            DiagnosticLog.e("MqttManager: disconnect() failed", e)
         }
     }
 }
