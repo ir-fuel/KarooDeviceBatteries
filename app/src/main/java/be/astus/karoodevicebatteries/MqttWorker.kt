@@ -138,7 +138,7 @@ class MqttWorker(appContext: Context, workerParams: WorkerParameters) :
                     put("manufacturer", "Hammerhead")
                 }
             }.toString()
-            mqtt.publish(discoveryTopic, configPayload, retain = true)
+            mqtt.publish(discoveryTopic, configPayload)
             mqtt.publish("karoo/$serial/sensor/internal_battery/state", karooPercentage.toString())
         }
 
@@ -172,11 +172,12 @@ class MqttWorker(appContext: Context, workerParams: WorkerParameters) :
                     put("manufacturer", "Hammerhead")
                 }
             }.toString()
-            mqtt.publish(discoveryTopic, configPayload, retain = true)
+            mqtt.publish(discoveryTopic, configPayload)
 
-            // Publish State as String (Retained so subscribers pick it up immediately)
+            // Publish State as String (not retained — only delivered to subscribers
+            // currently listening; doesn't linger on the broker for later readers)
             val stateTopic = "karoo/$serial/sensor/$sensorId/state"
-            mqtt.publish(stateTopic, status, retain = true)
+            mqtt.publish(stateTopic, status)
 
             // Publish Attributes
             val attributesTopic = "karoo/$serial/sensor/$sensorId/attributes"
@@ -188,7 +189,7 @@ class MqttWorker(appContext: Context, workerParams: WorkerParameters) :
                     put("percentage_raw", percentage)
                 }
             }.toString()
-            mqtt.publish(attributesTopic, attributesPayload, retain = true)
+            mqtt.publish(attributesTopic, attributesPayload)
         }
 
         mqtt.disconnect()
